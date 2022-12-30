@@ -13,6 +13,9 @@ setup(
         "sentencepiece==0.1.97",
         "pytorch-lightning==1.7.7",
         "transformers==4.20.1",
+        "torch==1.11.0+cu117",
+        "torchaudio==0.11.0+cu117",
+        "torchvision==0.12.0+cu117",
         "tqdm==4.64.0",
     ],
     extras_require={
