@@ -89,6 +89,7 @@ class OttoDataset(Dataset):
         return self.encoding.get("labels", [])
 
     def stratification(self) -> List[int]:
+        # first aid at index 1
         return [x[1] for x in self.encoding["labels"]]
 
 
@@ -100,23 +101,28 @@ class OttoLightningModel(pl.LightningModule):
         decoder_start_token_id: int,
         pad_token_id: int,
         vocab_size: int,
+        hidden_size: int,
     ):
         super().__init__()
         self.automatic_optimization = True
         self.lr = lr
-        self.config = EncoderDecoderConfig.from_encoder_decoder_configs(
-            encoder_config=RobertaConfig(
-                decoder_start_token_id=decoder_start_token_id,
-                pad_token_id=pad_token_id,
-                vocab_size=vocab_size,
-            ),
-            decoder_config=RobertaConfig(
-                decoder_start_token_id=decoder_start_token_id,
-                pad_token_id=pad_token_id,
-                vocab_size=vocab_size,
-            ),
+        self.model = EncoderDecoderModel(
+            config=EncoderDecoderConfig.from_encoder_decoder_configs(
+                encoder_config=RobertaConfig(
+                    hidden_size=hidden_size,
+                    intermediate_size=4 * hidden_size,
+                    num_attention_heads=8,
+                ),
+                decoder_config=RobertaConfig(
+                    hidden_size=hidden_size,
+                    intermediate_size=4 * hidden_size,
+                    num_attention_heads=8,
+                ),
+            )
         )
-        self.model = EncoderDecoderModel(config=self.config)
+        self.model.config.decoder_start_token_id = decoder_start_token_id
+        self.model.config.pad_token_id = pad_token_id
+        self.model.config.vocab_size = vocab_size
 
     def training_step(self, batch, batch_idx):
         outputs = self.model(**batch)
@@ -144,7 +150,6 @@ class OttoLightningModel(pl.LightningModule):
             on_epoch=True,
             prog_bar=True,
             logger=True,
-            sync_dist=True,
         )
 
     def configure_optimizers(self):
