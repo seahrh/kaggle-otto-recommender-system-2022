@@ -21,6 +21,7 @@ from tqdm import tqdm
 from transformers import (
     BatchEncoding,
     RobertaConfig,
+    BertConfig,
     EncoderDecoderConfig,
     EncoderDecoderModel,
 )
@@ -109,17 +110,22 @@ class OttoLightningModel(pl.LightningModule):
         self.model = EncoderDecoderModel(
             config=EncoderDecoderConfig.from_encoder_decoder_configs(
                 encoder_config=RobertaConfig(
+                    vocab_size=vocab_size,
                     hidden_size=hidden_size,
                     intermediate_size=4 * hidden_size,
                     num_attention_heads=8,
+                    # max_position_embeddings=32,
                 ),
                 decoder_config=RobertaConfig(
+                    vocab_size=vocab_size,
                     hidden_size=hidden_size,
                     intermediate_size=4 * hidden_size,
                     num_attention_heads=8,
+                    # max_position_embeddings=32,
                 ),
             )
         )
+        # config required for training
         self.model.config.decoder_start_token_id = decoder_start_token_id
         self.model.config.pad_token_id = pad_token_id
         self.model.config.vocab_size = vocab_size
@@ -239,6 +245,7 @@ class OttoObjective:
                 decoder_start_token_id=self.decoder_start_token_id,
                 pad_token_id=self.pad_token_id,
                 vocab_size=self.vocab_size,
+                hidden_size=64,
             )
             trainer = Trainer(
                 default_root_dir=str(directory),
