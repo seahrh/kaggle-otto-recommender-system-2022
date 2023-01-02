@@ -67,31 +67,45 @@ class OttoDataset(Dataset):
     def __init__(
         self,
         encoding: Union[BatchEncoding, Dict],
-        labels: Optional[List[List[int]]] = None,
         session_ids: Optional[List[int]] = None,
+        labels: Optional[List[List[int]]] = None,
     ):
-
+        self.overflow_to_sample_mapping = []
+        if "overflow_to_sample_mapping" in encoding:
+            self.overflow_to_sample_mapping = encoding.pop("overflow_to_sample_mapping")
         self.encoding = encoding
         if labels is not None:
             self.encoding["labels"] = labels
-        self.session_ids = session_ids
+        self.session_ids: List[int] = []
+        if session_ids is not None:
+            self.session_ids = session_ids
+            if len(self.overflow_to_sample_mapping) != 0:
+                self.session_ids = [
+                    session_ids[i] for i in self.overflow_to_sample_mapping
+                ]
 
     def __getitem__(self, idx):
         return {key: torch.tensor(val[idx]) for key, val in self.encoding.items()}
 
     def __len__(self):
-        return len(self.encoding.input_ids)
+        return len(self.encoding["input_ids"])
 
     def seqlen(self) -> int:
         """Sequence length"""
         return len(self.encoding["input_ids"][0])
 
     def labels(self) -> List[int]:
-        return self.encoding.get("labels", [])
+        return list(self.encoding.get("labels", []))
 
     def stratification(self) -> List[int]:
-        # first aid at index 1
-        return [x[1] for x in self.encoding["labels"]]
+        res = []
+        if "labels" in self.encoding:
+            # first aid at index 1
+            res = [row[1] for row in self.encoding["labels"]]
+        return res
+
+    def groups(self) -> List[int]:
+        return self.session_ids
 
 
 # noinspection PyAbstractClass
@@ -231,7 +245,7 @@ class OttoObjective:
             self.splitter.split(
                 dummy,
                 y=self.ds.stratification(),
-                groups=self.ds.session_ids,
+                groups=self.ds.groups(),
             )
         ):
             gc.collect()
