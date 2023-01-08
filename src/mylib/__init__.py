@@ -129,9 +129,9 @@ class OttoLightningModel(pl.LightningModule):
             )
         )
         # config required for training
-        self.model.config.decoder_start_token_id = decoder_start_token_id
-        self.model.config.pad_token_id = pad_token_id
-        self.model.config.vocab_size = vocab_size
+        self.model.config.decoder_start_token_id = decoder_start_token_id  # type: ignore
+        self.model.config.pad_token_id = pad_token_id  # type: ignore
+        self.model.config.vocab_size = vocab_size  # type: ignore
 
     def training_step(self, batch, batch_idx):
         outputs = self.model(**batch)
