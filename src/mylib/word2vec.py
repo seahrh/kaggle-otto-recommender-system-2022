@@ -1,11 +1,11 @@
 from typing import List, Optional
-
+import pytorch_lightning as pl
 import scml
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-__all__ = ["SkipGramWord2Vec"]
+__all__ = ["SkipGramWord2Vec", "Word2VecLightningModel"]
 log = scml.get_logger(__name__)
 
 
@@ -72,3 +72,78 @@ class SkipGramWord2Vec(nn.Module):
             log.debug(f"noise_pair_loss.size={noise_pair_loss.size()}")
             loss += noise_pair_loss
         return loss.mean()
+
+
+# noinspection PyAbstractClass
+class Word2VecLightningModel(pl.LightningModule):
+    def __init__(
+        self,
+        lr: float,
+        vocab_size: int,
+        embedding_size: int,
+        noise_dist: Optional[List[float]],
+        negative_samples: int,
+    ):
+        super().__init__()
+        self.automatic_optimization = True
+        self.lr = lr
+        self.model = SkipGramWord2Vec(
+            embedding_size=embedding_size,
+            vocab_size=vocab_size,
+            noise_dist=noise_dist,
+            negative_samples=negative_samples,
+        )
+
+    def training_step(self, batch, batch_idx):
+        outputs = self.model(**batch)
+        loss = outputs.loss
+        self.log(
+            "train_loss", loss, on_step=False, on_epoch=True, prog_bar=True, logger=True
+        )
+        if not self.automatic_optimization:
+            opts = self.optimizers()
+            if not isinstance(opts, list):
+                opts = [opts]
+            for opt in opts:
+                opt.zero_grad()
+                self.manual_backward(loss)
+                opt.step()
+        return loss
+
+    def validation_step(self, batch, batch_idx):
+        outputs = self.model(**batch)
+        loss = outputs.loss
+        self.log(
+            "val_loss",
+            loss,
+            on_step=False,
+            on_epoch=True,
+            prog_bar=True,
+            logger=True,
+        )
+
+    def configure_optimizers(self):
+        base = []
+        weighted_layer_pooling = []
+        log_vars = []
+        for name, param in self.model.named_parameters():
+            if name.startswith("weighted_layer_pooling"):
+                weighted_layer_pooling.append(param)
+                continue
+            if name.startswith("log_vars"):
+                log_vars.append(param)
+                continue
+            base.append(param)
+        optimizers = [
+            torch.optim.AdamW(
+                [
+                    {"params": base},
+                    {"params": weighted_layer_pooling, "lr": 1e-3},
+                    {"params": log_vars, "lr": 1e-3},
+                ],
+                lr=self.lr,
+                amsgrad=False,
+            )
+        ]
+        schedulers = []
+        return optimizers, schedulers
