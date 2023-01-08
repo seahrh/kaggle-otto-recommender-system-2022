@@ -186,3 +186,8 @@ class OttoLightningModel(pl.LightningModule):
         ]
         schedulers = []
         return optimizers, schedulers
+
+
+from .word2vec import *
+
+__all__ += word2vec.__all__  # type: ignore  # module name is not defined
