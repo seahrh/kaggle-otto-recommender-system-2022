@@ -1,8 +1,9 @@
-import torch
+from typing import List, Optional
+
 import scml
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import Optional, List
 
 __all__ = ["SkipGramWord2Vec"]
 log = scml.get_logger(__name__)

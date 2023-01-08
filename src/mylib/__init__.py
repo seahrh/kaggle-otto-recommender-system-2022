@@ -1,22 +1,21 @@
-import gc
 import os
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Union
 
-import numpy as np
+import os
+from typing import Any, Dict, List, Optional, Union
+
 import pytorch_lightning as pl
 import scml
 import torch
-from sklearn.model_selection import StratifiedGroupKFold
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import Dataset
 from transformers import (
     BatchEncoding,
-    RobertaConfig,
     EncoderDecoderConfig,
     EncoderDecoderModel,
+    RobertaConfig,
 )
 
-__all__ = ["OttoDataset", "OttoLightningModel", "OttoObjective"]
+__all__ = ["OttoDataset", "OttoLightningModel"]
 
 log = scml.get_logger(__name__)
 
@@ -187,96 +186,3 @@ class OttoLightningModel(pl.LightningModule):
         ]
         schedulers = []
         return optimizers, schedulers
-
-
-class OttoObjective:
-    def __init__(
-        self,
-        ds: OttoDataset,
-        n_splits: int,
-        epochs: int,
-        batch_size: int,
-        patience: int,
-        job_ts: str,
-        job_dir: Path,
-        decoder_start_token_id: int,
-        pad_token_id: int,
-        vocab_size: int,
-        lr: Tuple[float, float],
-        gpus: List[int],
-    ):
-        self.ds = ds
-        self.splitter = StratifiedGroupKFold(n_splits=n_splits)
-        self.epochs = epochs
-        self.batch_size = batch_size
-        self.patience = patience
-        self.job_ts = job_ts
-        self.job_dir = job_dir
-        self.lr = lr
-        self.decoder_start_token_id = decoder_start_token_id
-        self.pad_token_id = pad_token_id
-        self.vocab_size = vocab_size
-        self.gpus = gpus
-        self.history: List[Dict[str, ParamType]] = []
-
-    def __call__(self, trial):
-        hist = {
-            "time": self.job_ts,
-            "model_name": "",
-            "remarks": "",
-            "trial_id": trial.number,
-            "lr": trial.suggest_loguniform("lr", self.lr[0], self.lr[1]),
-        }
-        scores: List[float] = []
-        epochs_list: List[int] = []
-        dummy = np.zeros(len(self.ds))
-        y = np.array(self.ds.labels(), dtype=np.uint8)
-        for fold, (ti, vi) in enumerate(
-            self.splitter.split(
-                dummy,
-                y=self.ds.stratification(),
-                groups=self.ds.groups(),
-            )
-        ):
-            gc.collect()
-            torch.cuda.empty_cache()
-            directory = self.job_dir / f"trial{trial.number:02d}" / f"fold{fold:02d}"
-            directory.mkdir(parents=True, exist_ok=True)
-            tra_ds = torch.utils.data.Subset(self.ds, ti)
-            val_ds = torch.utils.data.Subset(self.ds, vi)
-            model = OttoLightningModel(
-                lr=hist["lr"],
-                decoder_start_token_id=self.decoder_start_token_id,
-                pad_token_id=self.pad_token_id,
-                vocab_size=self.vocab_size,
-                hidden_size=64,
-            )
-            trainer = Trainer(
-                default_root_dir=str(directory),
-                gpus=self.gpus,
-                max_epochs=self.epochs,
-                callbacks=training_callbacks(patience=self.patience),
-                deterministic=False,
-            )
-            trainer.fit(
-                model,
-                train_dataloaders=DataLoader(
-                    tra_ds,
-                    batch_size=self.batch_size,
-                    shuffle=True,
-                    num_workers=0,
-                ),
-                val_dataloaders=DataLoader(
-                    val_ds,
-                    batch_size=self.batch_size,
-                    shuffle=False,
-                    num_workers=0,
-                ),
-            )
-            epochs = trainer.current_epoch
-            pass
-            del model, trainer, tra_ds, val_ds
-        log.debug("all folds completed")
-        pass
-        self.history.append(hist)
-        return hist["score_ef_worst"]
