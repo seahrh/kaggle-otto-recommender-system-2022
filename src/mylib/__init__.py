@@ -126,16 +126,16 @@ class OttoLightningModel(pl.LightningModule):
                 encoder_config=RobertaConfig(
                     vocab_size=vocab_size,
                     hidden_size=hidden_size,
-                    intermediate_size=4 * hidden_size,
-                    num_attention_heads=8,
-                    # max_position_embeddings=32,
+                    intermediate_size=1 * hidden_size,
+                    num_attention_heads=4,
+                    # max_position_embeddings=32, triggers cuda-side assert
                 ),
                 decoder_config=RobertaConfig(
                     vocab_size=vocab_size,
                     hidden_size=hidden_size,
-                    intermediate_size=4 * hidden_size,
-                    num_attention_heads=8,
-                    # max_position_embeddings=32,
+                    intermediate_size=1 * hidden_size,
+                    num_attention_heads=4,
+                    # max_position_embeddings=32, triggers cuda-side assert
                 ),
             )
         )
