@@ -6,6 +6,7 @@ setup(
     version=__version__,
     python_requires="~=3.7",
     install_requires=[
+        "networkx==2.6.3",
         "optuna==3.0.3",
         "pandas==1.3.5",
         "pyarrow==8.0.0",
