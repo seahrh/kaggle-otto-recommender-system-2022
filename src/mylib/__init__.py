@@ -29,7 +29,7 @@ def weighted_choice(choices: Sequence[Tuple[str, int]]) -> str:
         cum_weights.append(total)
     x = random() * total
     i = bisect(cum_weights, x)
-    return values[i]
+    return values[i]  # type: ignore
 
 
 class Trainer(pl.Trainer):

@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset
 
-__all__ = ["SkipGramDataset", "SkipGramWord2Vec", "Word2VecLightningModel"]
+__all__ = ["SkipGramDataset", "SkipGramWord2Vec"]
 log = scml.get_logger(__name__)
 
 
@@ -35,16 +35,20 @@ class SkipGramDataset(Dataset):
         return self.session_ids
 
 
-class SkipGramWord2Vec(nn.Module):
+# noinspection PyAbstractClass
+class SkipGramWord2Vec(pl.LightningModule):
     def __init__(
         self,
-        embedding_size: int,
+        lr: float,
         vocab_size: int,
+        embedding_size: int,
         noise_dist: Optional[List[float]] = None,
         negative_samples: int = 10,
         initializer_range: float = 0.02,
     ):
         super().__init__()
+        self.automatic_optimization = True
+        self.lr = lr
         self.embeddings = nn.Embedding(vocab_size, embedding_size)
         self.vocab_size = vocab_size
         self.negative_samples = negative_samples
@@ -55,7 +59,7 @@ class SkipGramWord2Vec(nn.Module):
         self.embeddings.weight.data.normal_(mean=0.0, std=initializer_range)
 
     def forward(self, center_words, outside_words):
-        log.info(
+        log.debug(
             f"center_word.size={center_words.size()}, outside_word.size={outside_words.size()}"
         )  # bs
         em_center = self.embeddings(center_words)  # bs, emb_dim
@@ -81,9 +85,11 @@ class SkipGramWord2Vec(nn.Module):
                 replacement=num_samples > self.vocab_size,
             )
             # bs, num_neg_samples
+            # need to set device explicitly here, else error:
+            # Expected all tensors to be on the same device, but found at least two devices, cuda:0 and cpu
             neg_input_ids = neg_input_ids.view(
                 outside_words.shape[0], self.negative_samples
-            )
+            ).to(self.device)
             log.debug(f"neg_input_ids.size={neg_input_ids}")
             # bs, neg_samples, emb_dim
             em_neg = self.embeddings(neg_input_ids)
@@ -99,30 +105,8 @@ class SkipGramWord2Vec(nn.Module):
             loss += noise_pair_loss
         return loss.mean()
 
-
-# noinspection PyAbstractClass
-class Word2VecLightningModel(pl.LightningModule):
-    def __init__(
-        self,
-        lr: float,
-        vocab_size: int,
-        embedding_size: int,
-        negative_samples: int,
-        noise_dist: Optional[List[float]] = None,
-    ):
-        super().__init__()
-        self.automatic_optimization = True
-        self.lr = lr
-        self.model = SkipGramWord2Vec(
-            embedding_size=embedding_size,
-            vocab_size=vocab_size,
-            noise_dist=noise_dist,
-            negative_samples=negative_samples,
-        )
-
     def training_step(self, batch, batch_idx):
-        outputs = self.model(**batch)
-        loss = outputs.loss
+        loss = self(**batch)
         self.log(
             "train_loss", loss, on_step=False, on_epoch=True, prog_bar=True, logger=True
         )
@@ -137,8 +121,7 @@ class Word2VecLightningModel(pl.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):
-        outputs = self.model(**batch)
-        loss = outputs.loss
+        loss = self(**batch)
         self.log(
             "val_loss",
             loss,
@@ -152,7 +135,7 @@ class Word2VecLightningModel(pl.LightningModule):
         base = []
         weighted_layer_pooling = []
         log_vars = []
-        for name, param in self.model.named_parameters():
+        for name, param in self.named_parameters():
             if name.startswith("weighted_layer_pooling"):
                 weighted_layer_pooling.append(param)
                 continue
