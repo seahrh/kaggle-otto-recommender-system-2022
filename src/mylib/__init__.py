@@ -1,6 +1,7 @@
 import os
-from typing import Any, Dict, List, Optional, Union
-
+from typing import Any, Dict, List, Sequence, Optional, Union, Tuple
+from random import random
+from bisect import bisect
 import pytorch_lightning as pl
 import scml
 import torch
@@ -12,11 +13,23 @@ from transformers import (
     RobertaConfig,
 )
 
-__all__ = ["OttoDataset", "OttoLightningModel"]
+__all__ = ["weighted_choice", "OttoDataset", "OttoLightningModel"]
 
 log = scml.get_logger(__name__)
 
 ParamType = Union[str, int, float, bool]
+
+
+def weighted_choice(choices: Sequence[Tuple[str, int]]) -> str:
+    values, weights = zip(*choices)
+    total = 0
+    cum_weights = []
+    for w in weights:
+        total += w
+        cum_weights.append(total)
+    x = random() * total
+    i = bisect(cum_weights, x)
+    return values[i]
 
 
 class Trainer(pl.Trainer):
