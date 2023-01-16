@@ -1,12 +1,38 @@
-from typing import List, Optional
+from typing import Optional, List
 import pytorch_lightning as pl
 import scml
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.utils.data import Dataset
 
-__all__ = ["SkipGramWord2Vec", "Word2VecLightningModel"]
+__all__ = ["SkipGramDataset", "SkipGramWord2Vec", "Word2VecLightningModel"]
 log = scml.get_logger(__name__)
+
+
+class SkipGramDataset(Dataset):
+    def __init__(
+        self,
+        center_words: List[int],
+        session_ids: Optional[List[int]] = None,
+        outside_words: Optional[List[int]] = None,
+    ):
+        self.encoding = {"center_words": center_words}
+        if outside_words is not None:
+            self.encoding["outside_words"] = outside_words
+        self.session_ids: List[int] = session_ids if session_ids is not None else []
+
+    def __getitem__(self, idx):
+        return {key: torch.tensor(val[idx]) for key, val in self.encoding.items()}
+
+    def __len__(self):
+        return len(self.encoding["center_words"])
+
+    def labels(self) -> List[int]:
+        return list(self.encoding.get("outside_words", []))
+
+    def groups(self) -> List[int]:
+        return self.session_ids
 
 
 class SkipGramWord2Vec(nn.Module):
@@ -29,11 +55,11 @@ class SkipGramWord2Vec(nn.Module):
         self.embeddings.weight.data.normal_(mean=0.0, std=initializer_range)
 
     def forward(self, center_words, outside_words):
-        log.debug(
+        log.info(
             f"center_word.size={center_words.size()}, outside_word.size={outside_words.size()}"
         )  # bs
         em_center = self.embeddings(center_words)  # bs, emb_dim
-        em_outside = self.embeddings_context(outside_words)  # bs, emb_dim
+        em_outside = self.embeddings(outside_words)  # bs, emb_dim
         log.debug(
             f"em_center.size={em_center.size()}, em_outside.size={em_outside.size()}"
         )
@@ -81,8 +107,8 @@ class Word2VecLightningModel(pl.LightningModule):
         lr: float,
         vocab_size: int,
         embedding_size: int,
-        noise_dist: Optional[List[float]],
         negative_samples: int,
+        noise_dist: Optional[List[float]] = None,
     ):
         super().__init__()
         self.automatic_optimization = True
