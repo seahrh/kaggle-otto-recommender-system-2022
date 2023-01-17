@@ -40,8 +40,7 @@ class Trainer(pl.Trainer):
         storage_options: Optional[Any] = None,
     ) -> None:
         if self.is_global_zero:
-            # model = self.lightning_module.model_to_save
-            model = self.lightning_module.model
+            model = self.lightning_module.model_to_save
             white = ["weighted_layer_pooling", "log_vars"]
             for name, param in model.named_parameters():  # type: ignore
                 for w in white:
