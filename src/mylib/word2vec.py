@@ -88,7 +88,7 @@ class SkipGramWord2Vec(pl.LightningModule):
             # need to set device explicitly here, else error:
             # Expected all tensors to be on the same device, but found at least two devices, cuda:0 and cpu
             neg_input_ids = neg_input_ids.view(
-                outside_words.shape[0], self.negative_samples
+                outside_words.size()[0], self.negative_samples
             ).to(self.device)
             log.debug(f"neg_input_ids.size={neg_input_ids}")
             # bs, neg_samples, emb_dim
