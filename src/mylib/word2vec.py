@@ -52,7 +52,9 @@ class SkipGramWord2Vec(pl.LightningModule):
         self.embeddings = nn.Embedding(vocab_size, embedding_size)
         self.vocab_size = vocab_size
         self.negative_samples = negative_samples
-        self.noise_dist = noise_dist
+        self.noise_dist = (
+            noise_dist if noise_dist is not None else torch.ones(self.vocab_size)
+        )
         # Copied from transformers.models.bert.modeling_bert.BertPreTrainedModel._init_weights
         # initializer_range(`float`, *optional *, defaults to 0.02):
         # The standard deviation of the truncated_normal_initializer for initializing all weight matrices.
@@ -75,12 +77,9 @@ class SkipGramWord2Vec(pl.LightningModule):
         log.debug(f"true_pair_loss.size={true_pair_loss.size()}")
         loss = true_pair_loss
         if self.negative_samples > 0:
-            noise_dist = self.noise_dist
-            if self.noise_dist is None:
-                noise_dist = torch.ones(self.vocab_size)
             num_samples = outside_words.size()[0] * self.negative_samples
             neg_input_ids = torch.multinomial(
-                noise_dist,
+                self.noise_dist,
                 num_samples=num_samples,
                 replacement=num_samples > self.vocab_size,
             )
@@ -96,8 +95,10 @@ class SkipGramWord2Vec(pl.LightningModule):
             log.debug(f"em_neg.size={em_neg.size()}")
             # batch matrix multiply
             # (B, K, D) * (B, D, 1) = (B, K, 1)
-            # Negation of outside word vectors
-            em_dot_neg = torch.bmm(em_neg.neg(), em_center.unsqueeze(2))
+            # Negated dot product of noise pair
+            # Large +dot, large -dot, sigmoid 0, logsigmoid -Inf
+            # Large -dot, large +dot, sigmoid 1, logsigmoid zero
+            em_dot_neg = torch.bmm(em_neg, em_center.unsqueeze(2)).neg()
             em_dot_neg = em_dot_neg.squeeze(2)
             log.debug(f"em_dot_neg.size={em_dot_neg.size()}")
             noise_pair_loss = F.logsigmoid(em_dot_neg).sum(1).neg()  # bs
