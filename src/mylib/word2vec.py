@@ -64,7 +64,8 @@ class SkipGramWord2Vec(pl.LightningModule):
         self.word_embeddings.weight.data.normal_(mean=0.0, std=initializer_range)
         self.type_embeddings.weight.data.normal_(mean=0.0, std=initializer_range)
         # Initialize both embedding tables with uniform distribution
-        # self.embeddings.weight.data.uniform_(-1, 1)
+        # self.word_embeddings.weight.data.uniform_(-1, 1)
+        # self.type_embeddings.weight.data.uniform_(-1, 1)
 
     def forward(self, center_words, center_types, outside_words, outside_types):
         log.debug(
@@ -104,7 +105,9 @@ class SkipGramWord2Vec(pl.LightningModule):
             log.debug(f"neg_input_ids.size={neg_input_ids}")
             # bs, neg_samples, emb_dim
             em_neg = self.word_embeddings(neg_input_ids) + self.type_embeddings(
-                torch.zeros(neg_input_ids.size())
+                torch.zeros(size=neg_input_ids.size(), dtype=torch.int).to(
+                    neg_input_ids
+                )
             )
             log.debug(f"em_neg.size={em_neg.size()}")
             # batch matrix multiply
