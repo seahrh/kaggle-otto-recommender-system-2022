@@ -61,11 +61,11 @@ class SkipGramWord2Vec(pl.LightningModule):
         # Copied from transformers.models.bert.modeling_bert.BertPreTrainedModel._init_weights
         # initializer_range(`float`, *optional *, defaults to 0.02):
         # The standard deviation of the truncated_normal_initializer for initializing all weight matrices.
-        self.word_embeddings.weight.data.normal_(mean=0.0, std=initializer_range)
-        self.type_embeddings.weight.data.normal_(mean=0.0, std=initializer_range)
+        # self.word_embeddings.weight.data.normal_(mean=0.0, std=initializer_range)
+        # self.type_embeddings.weight.data.normal_(mean=0.0, std=initializer_range)
         # Initialize both embedding tables with uniform distribution
-        # self.word_embeddings.weight.data.uniform_(-1, 1)
-        # self.type_embeddings.weight.data.uniform_(-1, 1)
+        self.word_embeddings.weight.data.uniform_(-1, 1)
+        self.type_embeddings.weight.data.uniform_(-1, 1)
 
     def forward(self, center_words, center_types, outside_words, outside_types):
         log.debug(
