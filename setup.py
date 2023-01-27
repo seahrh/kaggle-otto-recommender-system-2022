@@ -6,6 +6,7 @@ setup(
     version=__version__,
     python_requires="~=3.7",
     install_requires=[
+        "faiss-cpu==1.7.3",
         "networkx==2.6.3",
         "optuna==3.0.3",
         "pandas==1.3.5",
