@@ -66,6 +66,7 @@ class SkipGramWord2Vec(pl.LightningModule):
         # Initialize both embedding tables with uniform distribution
         self.word_embeddings.weight.data.uniform_(-1, 1)
         self.type_embeddings.weight.data.uniform_(-1, 1)
+        self.save_hyperparameters()
 
     def forward(self, center_words, center_types, outside_words, outside_types):
         log.debug(
