@@ -1,3 +1,8 @@
 exclude *.ipynb
 include *.ini
-graft data
+include data/vocab3.json
+include data/20230129_151538.npy
+include data/20230129_151538.index
+# m16
+include data/20230130_025602.npy
+include data/20230130_025602.index
