@@ -1,7 +1,7 @@
 exclude *.ipynb
 include *.ini
 include data/vocab3.json
-include data/m8_w7_i10.npy
-include data/m8_w7_i10.index
-include input/pairs_m8_w7_i10.parquet
-include input/pairs_m8_w7_i20.parquet
+include data/m8_w7_i20.npy
+include data/m8_w7_i20.index
+#include input/pairs_m8_w7_i10.parquet
+#include input/pairs_m8_w7_i20.parquet
